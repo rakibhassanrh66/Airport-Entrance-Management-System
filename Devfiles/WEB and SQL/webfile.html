@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Airport Management System</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Airport Management Dashboard</h1>
+
+        <!-- Display Flights from the Database -->
+        <h2>Flight Information</h2>
+        <table id="flightsTable">
+            <thead>
+                <tr>
+                    <th>Flight Number</th>
+                    <th>Airline</th>
+                    <th>Source</th>
+                    <th>Destination</th>
+                    <th>Departure Time</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php
+                // Database Connection
+                $conn = new mysqli("localhost:8080", "root", "", "airport_management");
+                if ($conn->connect_error) {
+                    die("Connection failed: " . $conn->connect_error);
+                }
+
+                // Fetching Flight Data
+                $sql = "SELECT Flights.FlightNumber, Airlines.Name AS Airline, Flights.Source, Flights.Destination, Flights.DepartureTime FROM Flights JOIN Airlines ON Flights.AirlineID = Airlines.AirlineID";
+                $result = $conn->query($sql);
+
+                if ($result->num_rows > 0) {
+                    // Output data of each row
+                    while($row = $result->fetch_assoc()) {
+                        echo "<tr>";
+                        echo "<td>" . $row['FlightNumber'] . "</td>";
+                        echo "<td>" . $row['Airline'] . "</td>";
+                        echo "<td>" . $row['Source'] . "</td>";
+                        echo "<td>" . $row['Destination'] . "</td>";
+                        echo "<td>" . $row['DepartureTime'] . "</td>";
+                        echo "</tr>";
+                    }
+                } else {
+                    echo "<tr><td colspan='5'>No flights found</td></tr>";
+                }
+
+                $conn->close();
+                ?>
+            </tbody>
+        </table>
+
+        <!-- Flight Search Form -->
+        <h2>Search for a Flight</h2>
+        <form id="searchForm">
+            <label for="flightNumber">Enter Flight Number:</label>
+            <input type="text" id="flightNumber" name="flightNumber" required>
+            <button type="submit">Search</button>
+        </form>
+        
+        <!-- Display Search Result -->
+        <div id="searchResult"></div>
+    </div>
+
+    <script src="main.js"></script>
+</body>
+</html>
