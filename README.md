@@ -20,6 +20,12 @@
   <img src="https://img.shields.io/badge/license-MIT-black?style=flat-square" alt="MIT" />
 </p>
 
+<p align="center">
+  <b><a href="https://airport-entrance-management-system.onrender.com/docs">▶ Try the live API →</a></b><br/>
+  <sub>Swagger UI, live. Log in with <code>admin@airport.example.com</code> / <code>AirportDemo2026!</code><br/>
+  Free instance — the first request may take ~50s to wake.</sub>
+</p>
+
 ---
 
 A backend for international airport operations. The interesting part is not that
@@ -66,13 +72,16 @@ API on <http://localhost:8000> · interactive docs at <http://localhost:8000/doc
   </a>
 </p>
 
-`render.yaml` provisions the database and web service together and wires the
-connection string. **Render is the recommended target** — it builds
-`backend/Dockerfile` as-is, so production runs the same artifact as local.
+Already deployed at the link above. `render.yaml` provisions the database and
+web service together and wires the connection string. **Render is the
+recommended target** — it builds `backend/Dockerfile` as-is, so what runs in
+production is the artifact that runs locally.
 
 Vercel is supported too (`vercel.json` + `api/index.py`), but it costs you the
 Dockerfile, in-process migrations, and connection pooling. The trade is spelled
 out in **[docs/DEPLOY.md](docs/DEPLOY.md)** — read it before choosing.
+
+Showing this to someone? **[docs/DEMO.md](docs/DEMO.md)** has the script.
 
 > The app has **no fallback secrets by design**. Without `AIRPORT_DATABASE_URL`
 > and `AIRPORT_JWT_SECRET` it refuses to boot rather than starting insecure.
