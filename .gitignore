@@ -31,6 +31,10 @@ __pycache__/
 # Vercel
 .vercel/
 
+# The Render CLI source, cloned in here while setting up the deploy. It is a
+# separate upstream repo (render-oss/cli) and does not belong in this one.
+/cli/
+
 # OS / editor noise
 .DS_Store
 Thumbs.db

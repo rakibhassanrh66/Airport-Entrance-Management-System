@@ -30,11 +30,18 @@ RUN pip install --no-cache-dir /tmp/*.whl && rm -rf /tmp/*.whl
 COPY alembic.ini ./
 COPY alembic ./alembic
 
+# chmod here rather than relying on the checked-in file mode: this is committed
+# from Windows, where the executable bit does not survive.
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
 USER appuser
 
 EXPOSE 8000
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-    CMD python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/health').status==200 else 1)"
+    CMD python -c "import os,urllib.request,sys; p=os.environ.get('PORT','8000'); sys.exit(0 if urllib.request.urlopen(f'http://localhost:{p}/health').status==200 else 1)"
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Migrates then serves, honouring $PORT. See docker-entrypoint.sh for why the
+# chain lives in the image rather than in each host's start command.
+CMD ["docker-entrypoint.sh"]

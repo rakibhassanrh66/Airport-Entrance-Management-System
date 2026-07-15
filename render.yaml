@@ -24,12 +24,20 @@ services:
     # /ready is the one that checks Postgres.
     healthCheckPath: /health
 
-    # Migrations run at container start, mirroring docker-compose. Render's
-    # preDeployCommand would be the tidier home for this, but it is not available
-    # on the free plan. The trade-off: with more than one instance, two containers
-    # could race to migrate. Alembic takes a lock, so the loser waits rather than
-    # corrupting anything — and the free plan runs a single instance regardless.
-    dockerCommand: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"
+    # No dockerCommand on purpose. The image's CMD (docker-entrypoint.sh) already
+    # migrates then serves on $PORT.
+    #
+    # Do not be tempted to put the chain here instead. Render's dockerCommand is
+    # not a shell: it expands $PORT but then execs the tokens directly, so
+    #   alembic upgrade head && uvicorn ...
+    # hands "&&" to alembic as a literal argument (exit 2), and wrapping it in
+    # sh -c "..." fails differently (exit 127). Keeping it in the image means
+    # compose, Render and a bare docker run are the same path.
+    #
+    # Migrations therefore run at container start. With more than one instance two
+    # containers could race, but alembic takes a lock so the loser waits — and the
+    # free plan runs a single instance anyway. preDeployCommand would be the
+    # tidier home for this, but it is not available on the free plan.
 
     envVars:
       # Render hands out a postgres:// URL. Settings._require_async_driver

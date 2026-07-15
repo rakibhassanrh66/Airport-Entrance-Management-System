@@ -42,8 +42,22 @@ Render looked for `Dockerfile` at the repository root. It is at
 |---|---|
 | Dockerfile Path | `./backend/Dockerfile` |
 | Docker Build Context Directory | `./backend` |
-| Docker Command | `sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"` |
+| Docker Command | **leave empty** |
 | Health Check Path | `/health` |
+
+**Leave Docker Command empty.** The image's `CMD`
+(`backend/docker-entrypoint.sh`) already migrates then serves on `$PORT`.
+
+Do not move that chain into Docker Command. Render's `dockerCommand` is **not a
+shell** — it expands `$PORT` and then execs the tokens directly, so:
+
+| What you put there | What happens |
+|---|---|
+| `alembic upgrade head && uvicorn …` | `&&` reaches alembic as a literal argument → `alembic: error: unrecognized arguments: &&` → **exit 2** |
+| `sh -c "alembic upgrade head && uvicorn …"` | whole string taken as one command name → `sh: 1: … : not found` → **exit 127** |
+
+Both fail *after a successful build*, which makes them look like application
+bugs rather than configuration ones.
 
 Fixing the path alone is not enough. The app has **no fallback secrets by
 design** and will exit on boot without these — under **Environment**:
