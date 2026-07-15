@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse, Response
 from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 
@@ -53,8 +53,35 @@ def create_app() -> FastAPI:
     _register_exception_handlers(app)
     app.include_router(api_router, prefix="/api/v1")
     _register_health_routes(app)
+    _register_root_route(app, settings)
 
     return app
+
+
+def _register_root_route(app: FastAPI, settings) -> None:
+    @app.get("/", include_in_schema=False)
+    async def root() -> Response:
+        """Answer the URL a human actually types.
+
+        Without this, `/` is a 404: every route lives under /api/v1, /docs or
+        the probes. Anyone opening the deployment URL — which is the first thing
+        anyone does — met `{"detail":"Not Found"}` and reasonably concluded the
+        service was broken.
+
+        Where docs are served, send them there. In production they are disabled,
+        so redirecting would swap one 404 for another; answer with an index that
+        at least says what this is and what is reachable.
+        """
+        if settings.is_production:
+            return JSONResponse(
+                {
+                    "service": app.title,
+                    "version": app.version,
+                    "docs": "disabled in production",
+                    "endpoints": {"api": "/api/v1", "health": "/health", "ready": "/ready"},
+                }
+            )
+        return RedirectResponse(url="/docs")
 
 
 def _register_exception_handlers(app: FastAPI) -> None:

@@ -12,7 +12,7 @@
 ## The 60-second version
 
 > "It's an airport operations backend — flights, ticketing, gates, baggage,
-> immigration. 35 endpoints, 105 tests, running on Render.
+> immigration. 35 endpoints, 113 tests, running on Render.
 >
 > The part I'd point at is that the business rules are enforced in PostgreSQL,
 > not in Python. Two people can't book the same seat — and not because I check

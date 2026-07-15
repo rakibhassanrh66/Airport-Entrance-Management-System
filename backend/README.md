@@ -61,7 +61,7 @@ either works.
 .venv/Scripts/python -m pytest
 ```
 
-105 tests. They run against a real PostgreSQL database — created, migrated and
+113 tests. They run against a real PostgreSQL database — created, migrated and
 dropped automatically — because the guarantees this project relies on (partial
 unique indexes, GiST exclusion constraints, `SELECT … FOR UPDATE`) do not exist
 on SQLite. Testing against SQLite would prove nothing about production.
