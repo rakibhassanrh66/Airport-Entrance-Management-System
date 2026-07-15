@@ -104,14 +104,42 @@ curl https://<your-service>.onrender.com/ready    # {"status":"ready","database"
 `/health` passes and `/ready` fails, the container is up and the database wiring
 is wrong.
 
-Then seed an admin (**Shell** tab, or a One-Off Job):
+### Seeding on the free plan
+
+On a paid plan, use the **Shell** tab or a One-Off Job:
 
 ```bash
 AIRPORT_SEED_ADMIN_PASSWORD='<a real password>' python -m app.seed
 ```
 
-`/docs` is **disabled** when `AIRPORT_ENVIRONMENT=production`. That is
-deliberate, not a broken deploy.
+**On the free plan none of that is available**, and it is worse than it looks:
+
+- Free Postgres accepts **no external connections** — not even from an
+  allow-listed IP. `psql` and `alembic` from your laptop both fail with
+  `SSL connection has been closed unexpectedly`, which reads like a TLS problem
+  and is actually a firewall.
+- One-off jobs return `new paid services not allowed`.
+- Shell and SSH are paid.
+
+The only process that can reach a free database is the service container
+itself. So the entrypoint seeds on request:
+
+| Variable | Value |
+|---|---|
+| `AIRPORT_SEED_ON_START` | `true` |
+| `AIRPORT_SEED_ADMIN_PASSWORD` | the admin password you want |
+
+Deploy, and the container migrates then seeds. `app.seed` is idempotent — a
+second run leaves an existing admin's password unchanged, so it is safe to
+leave enabled. **Do not enable it where real data lives.**
+
+### Showing the API to someone
+
+`/docs` is disabled when `AIRPORT_ENVIRONMENT=production` — that is deliberate,
+not a broken deploy. For a portfolio or demo deployment set
+`AIRPORT_ENVIRONMENT=staging` instead: `is_production` gates *only* the docs
+blackout, so every other control (argon2, JWT, roles, the database constraints)
+stays exactly as it is, and Swagger UI becomes browsable at `/docs`.
 
 ---
 
