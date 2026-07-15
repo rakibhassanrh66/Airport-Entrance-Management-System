@@ -1,0 +1,37 @@
+# Java build output — NetBeans/ant regenerate these from src/.
+build/
+dist/
+*.class
+*.jar
+
+# NetBeans per-developer state: absolute paths from whoever last opened the IDE.
+# nbproject/project.properties and project.xml ARE shared and stay tracked.
+#
+# The leading **/ is load-bearing. A pattern containing a middle separator is
+# anchored to this file's directory, so a bare "nbproject/private/" would only
+# match at the repository root — never Devfiles/…/nbproject/private/.
+**/nbproject/private/
+
+# Compiled C output. system.c is the source of record.
+*.exe
+*.o
+*.obj
+
+# Unreferenced 979 KB demo recording, kept on disk but out of the repository.
+# The README's screenshots (s1.png, s2.jpg) remain tracked.
+Devfiles/Assets/an.mp4
+
+# Python — see backend/.gitignore for the rest.
+__pycache__/
+*.py[cod]
+
+# Real secrets. .env.example is the committed template.
+.env
+
+# Vercel
+.vercel/
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+*.swp

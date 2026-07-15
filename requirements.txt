@@ -1,0 +1,20 @@
+# Vercel only. Every other target installs backend/pyproject.toml instead.
+#
+# Vercel's Python runtime reads requirements.txt and nothing else, so these are
+# duplicated from backend/pyproject.toml [project.dependencies]. If you change
+# them there, change them here. Nothing enforces that — it is the main cost of
+# supporting this platform.
+#
+# uvicorn is absent on purpose: Vercel drives the ASGI app itself.
+# alembic is absent on purpose: migrations cannot run in a serverless function.
+# Run them from your machine against the same database. See docs/DEPLOY.md.
+
+fastapi>=0.115.0
+sqlalchemy>=2.0.36
+psycopg[binary]>=3.2.3
+pydantic>=2.9.0
+pydantic-settings>=2.6.0
+email-validator>=2.2.0
+argon2-cffi>=23.1.0
+pyjwt>=2.10.0
+python-multipart>=0.0.17

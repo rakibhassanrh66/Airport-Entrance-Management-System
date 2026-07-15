@@ -130,10 +130,19 @@ Overlapping windows on the same gate are impossible. Adjacent windows
 ### Flights follow a lifecycle
 
 ```
-scheduled ──> delayed ──> boarding ──> departed ──> completed
-     │           │            │
-     └───────────┴────────────┴──> cancelled
+              ┌──────────────┐ re-delay
+              ↓              │
+scheduled ──> delayed ───────┘
+    │            │
+    │            ↓
+    └───────> boarding ──> departed ──> completed
+    │            │
+    └────────────┴──> cancelled
 ```
+
+`scheduled` may go straight to `boarding` without a delay, and a delayed flight
+may be delayed again. The authoritative list is `FLIGHT_STATUS_TRANSITIONS` in
+`app/models/enums.py`.
 
 Anything else is rejected with `409 illegal_state_transition`, and the response
 lists which transitions *are* legal. Cancelling a flight cascades: live tickets
@@ -212,7 +221,7 @@ database values into HTML unescaped. For the record, here:
 
 ## Endpoints
 
-29 routes under `/api/v1`. Full interactive reference at `/docs`.
+35 routes under `/api/v1`. Full interactive reference at `/docs`.
 
 | Area | Highlights |
 |---|---|

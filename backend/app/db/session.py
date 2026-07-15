@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import (
     async_sessionmaker,
     create_async_engine,
 )
+from sqlalchemy.pool import NullPool
 
 from app.core.config import get_settings
 
@@ -17,13 +18,23 @@ def get_engine() -> AsyncEngine:
     global _engine
     if _engine is None:
         settings = get_settings()
-        _engine = create_async_engine(
-            str(settings.database_url),
-            echo=settings.db_echo,
-            pool_size=settings.db_pool_size,
-            max_overflow=settings.db_max_overflow,
-            pool_pre_ping=True,
-        )
+        if settings.db_serverless:
+            # NullPool opens and closes a connection per checkout. pool_size and
+            # max_overflow are not merely redundant here, they are rejected:
+            # NullPool takes neither. Pooling belongs to the provider's pgbouncer.
+            _engine = create_async_engine(
+                str(settings.database_url),
+                echo=settings.db_echo,
+                poolclass=NullPool,
+            )
+        else:
+            _engine = create_async_engine(
+                str(settings.database_url),
+                echo=settings.db_echo,
+                pool_size=settings.db_pool_size,
+                max_overflow=settings.db_max_overflow,
+                pool_pre_ping=True,
+            )
     return _engine
 
 

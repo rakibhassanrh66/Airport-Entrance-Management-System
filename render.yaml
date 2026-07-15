@@ -1,0 +1,52 @@
+# Render Blueprint — https://render.com/docs/blueprint-spec
+#
+# The application lives in backend/, not at the repository root. Both paths below
+# are relative to the root, and getting them wrong is the failure mode you hit
+# first: Render reports "failed to read dockerfile: open Dockerfile: no such file
+# or directory" because it looked for /Dockerfile and found nothing.
+
+databases:
+  - name: airport-db
+    databaseName: airport_ops
+    user: airport
+    plan: free
+
+services:
+  - type: web
+    name: airport-ops-api
+    runtime: docker
+    plan: free
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+
+    # /health is the liveness probe and deliberately does not touch the database,
+    # so Render's health check cannot be held hostage by a slow database.
+    # /ready is the one that checks Postgres.
+    healthCheckPath: /health
+
+    # Migrations run at container start, mirroring docker-compose. Render's
+    # preDeployCommand would be the tidier home for this, but it is not available
+    # on the free plan. The trade-off: with more than one instance, two containers
+    # could race to migrate. Alembic takes a lock, so the loser waits rather than
+    # corrupting anything — and the free plan runs a single instance regardless.
+    dockerCommand: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"
+
+    envVars:
+      # Render hands out a postgres:// URL. Settings._require_async_driver
+      # rewrites it to postgresql+psycopg:// — SQLAlchemy's async engine needs an
+      # explicit async driver and would otherwise fail at connect time.
+      - key: AIRPORT_DATABASE_URL
+        fromDatabase:
+          name: airport-db
+          property: connectionString
+
+      # Generated once by Render and held in the service. Never in the repo.
+      - key: AIRPORT_JWT_SECRET
+        generateValue: true
+
+      # Disables /docs, /redoc and /openapi.json.
+      - key: AIRPORT_ENVIRONMENT
+        value: production
+
+      - key: AIRPORT_DEBUG
+        value: "false"

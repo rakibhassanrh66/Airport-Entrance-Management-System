@@ -8,29 +8,34 @@ public class Entrance {
     private List<Person> persons = new ArrayList<>();
 
     public void start() {
+        // One Scanner for the whole program, handed to whoever needs input.
+        // Each class building its own over System.in gave every instance a private
+        // buffer, and whichever read first swallowed input the others expected.
+        //
+        // It is deliberately never closed: closing a Scanner closes System.in with
+        // it, and System.in cannot be reopened.
         Scanner scanner = new Scanner(System.in);
 
         int choice;
         do {
+            System.out.println();
             System.out.println("Gate Pass System Menu:");
             System.out.println("1. Add a new ID");
             System.out.println("2. Access Gate");
             System.out.println("3. Book a Ticket");
             System.out.println("4. View Entries");
             System.out.println("0. Exit");
-            System.out.print("Enter your choice: ");
-            choice = scanner.nextInt();
-            scanner.nextLine(); // Consume newline
+            choice = Console.readInt(scanner, "Enter your choice: ");
 
             switch (choice) {
                 case 1:
-                    new AddNewID().execute(persons);
+                    new AddNewID().execute(persons, scanner);
                     break;
                 case 2:
-                    new AccessGate().execute(persons);
+                    new AccessGate().execute(persons, scanner);
                     break;
                 case 3:
-                    bookTicket(scanner); // Call the ticket booking method and pass the scanner
+                    bookTicket(scanner);
                     break;
                 case 4:
                     new ViewEntries().execute(persons);
@@ -42,26 +47,19 @@ public class Entrance {
                     System.out.println("Invalid choice. Please try again.");
             }
         } while (choice != 0);
-        scanner.close(); // Close the scanner when finished
     }
 
     // Method for booking a ticket
     private void bookTicket(Scanner scanner) {
-        System.out.print("Enter Passenger Name: ");
-        String name = scanner.nextLine();
-
-        System.out.print("Enter National ID Card Number: ");
-        String nationalId = scanner.nextLine();
-
-        System.out.print("Enter Destination: ");
-        String destination = scanner.nextLine();
-
-        System.out.print("Enter Date of Travel: ");
-        String date = scanner.nextLine();
+        String name = Console.readLine(scanner, "Enter Passenger Name: ");
+        String nationalId = Console.readLine(scanner, "Enter National ID Card Number: ");
+        String destination = Console.readLine(scanner, "Enter Destination: ");
+        String date = Console.readLine(scanner, "Enter Date of Travel: ");
 
         TicketBooking ticket = new TicketBooking(name, nationalId, destination, date);
 
-        System.out.println("\nTicket Information:");
+        System.out.println();
+        System.out.println("Ticket Information:");
         ticket.displayTicketInfo();
     }
 }
