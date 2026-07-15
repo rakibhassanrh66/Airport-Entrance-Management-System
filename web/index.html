@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Airport Operations — Live Demo</title>
+<meta name="description" content="Live demo of an airport operations API. Two passengers cannot book the same seat — enforced in PostgreSQL." />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>✈️</text></svg>" />
+<link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+
+<header class="top">
+  <div class="brand">
+    <span class="plane">✈</span>
+    <div>
+      <h1>Airport Operations</h1>
+      <p class="sub">Live demo · <span id="api-host">…</span></p>
+    </div>
+  </div>
+  <div class="status" id="conn">
+    <span class="dot" id="dot"></span><span id="conn-text">connecting…</span>
+  </div>
+</header>
+
+<div id="waking" class="waking hidden">
+  <div class="spinner"></div>
+  <div>
+    <strong>Waking the server…</strong>
+    <p>Free instance — sleeps when idle. First request takes up to ~50s.</p>
+  </div>
+</div>
+
+<main>
+
+  <!-- ── The pitch ─────────────────────────────────────────── -->
+  <section class="pitch">
+    <h2>Two passengers, one seat.</h2>
+    <p>
+      Almost every booking system has a race condition in it. Click
+      <b>Run the race</b> below and watch this one not have one — two
+      simultaneous requests for the same seat, one <code>201</code>, one
+      <code>409</code>. That verdict comes from PostgreSQL, not from an
+      <code>if</code> statement.
+    </p>
+  </section>
+
+  <!-- ── Departures ────────────────────────────────────────── -->
+  <section class="panel">
+    <div class="panel-head">
+      <h3>Departures</h3>
+      <span class="hint">select a flight</span>
+    </div>
+    <div class="board" id="board">
+      <div class="board-row head">
+        <span>Flight</span><span>Route</span><span>Departs</span><span>Status</span><span></span>
+      </div>
+      <div id="flights"><div class="loading">loading flights…</div></div>
+    </div>
+  </section>
+
+  <!-- ── Seat map ──────────────────────────────────────────── -->
+  <section class="panel" id="seat-panel" hidden>
+    <div class="panel-head">
+      <h3>Seat map — <span id="seat-flight" class="mono"></span></h3>
+      <span class="hint"><span id="seat-count"></span> · click a free seat to book it</span>
+    </div>
+
+    <div class="legend">
+      <span><i class="sw free"></i> free</span>
+      <span><i class="sw taken"></i> taken</span>
+      <span><i class="sw mine"></i> just booked</span>
+    </div>
+
+    <div class="cabin" id="cabin"></div>
+
+    <div class="race">
+      <div class="race-copy">
+        <strong>Run the race</strong>
+        <p>
+          Fires two bookings for seat <code id="race-seat">—</code> at the same
+          instant, from two connections. Exactly one can win.
+        </p>
+      </div>
+      <button id="race-btn" class="btn primary">Run the race</button>
+    </div>
+
+    <div id="race-out" class="race-out hidden">
+      <div class="result" id="res-a"></div>
+      <div class="result" id="res-b"></div>
+      <p class="verdict" id="verdict"></p>
+      <details class="why">
+        <summary>Why one of them lost</summary>
+        <p>No application code chose this. The database did:</p>
+<pre><code>CREATE UNIQUE INDEX uq_tickets_flight_seat_active
+  ON tickets (flight_id, seat_number)
+  WHERE booking_status IN ('confirmed', 'checked_in');</code></pre>
+        <p>
+          It's <b>partial</b> — cancelled tickets fall outside it, so a released
+          seat can be resold. Capacity is guarded separately by locking the
+          flight row <code>FOR UPDATE</code>, so two callers can't both read
+          "179 of 180 sold" and both proceed.
+        </p>
+      </details>
+    </div>
+  </section>
+
+  <!-- ── Lifecycle ─────────────────────────────────────────── -->
+  <section class="panel" id="life-panel" hidden>
+    <div class="panel-head">
+      <h3>Flight lifecycle</h3>
+      <span class="hint">illegal moves are rejected — and the error tells you what's legal</span>
+    </div>
+    <div class="life">
+      <div class="life-now">
+        <span class="mono" id="life-flight"></span>
+        <span class="pill" id="life-status"></span>
+      </div>
+      <div class="life-btns" id="life-btns"></div>
+    </div>
+    <pre class="resp hidden" id="life-out"></pre>
+  </section>
+
+</main>
+
+<footer>
+  <div>
+    <a href="https://github.com/rakibhassanrh66/Airport-Entrance-Management-System">Source</a> ·
+    <a id="docs-link" href="#">API docs</a> ·
+    <a href="https://github.com/rakibhassanrh66/Airport-Entrance-Management-System/blob/main/docs/DEMO.md">Demo notes</a>
+  </div>
+  <div class="muted">
+    UI on Vercel · API + PostgreSQL on Render · 35 endpoints · 113 tests
+  </div>
+</footer>
+
+<script src="./app.js"></script>
+</body>
+</html>

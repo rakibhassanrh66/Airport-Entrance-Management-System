@@ -1,0 +1,12 @@
+# Vercel serves the static UI in web/ (see vercel.json outputDirectory).
+# Nothing else in this repo needs uploading — the API runs on Render.
+
+backend/
+Devfiles/
+docs/
+cli/
+.github/
+*.md
+render.yaml
+requirements.txt
+api/

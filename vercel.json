@@ -1,15 +1,14 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "functions": {
-    "api/index.py": {
-      "includeFiles": "backend/app/**",
-      "maxDuration": 30
-    }
-  },
-  "rewrites": [
+  "outputDirectory": "web",
+  "cleanUrls": true,
+  "headers": [
     {
       "source": "/(.*)",
-      "destination": "/api/index"
+      "headers": [
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" }
+      ]
     }
   ]
 }

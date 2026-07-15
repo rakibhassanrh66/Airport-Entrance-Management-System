@@ -21,9 +21,17 @@
 </p>
 
 <p align="center">
-  <b><a href="https://airport-entrance-management-system.onrender.com/docs">▶ Try the live API →</a></b><br/>
-  <sub>Swagger UI, live. Log in with <code>admin@airport.example.com</code> / <code>AirportDemo2026!</code><br/>
-  Free instance — the first request may take ~50s to wake.</sub>
+  <b><a href="https://airport-entrance-management-system.vercel.app">▶ Open the live demo →</a></b><br/>
+  <sub>Pick a flight, then hit <b>Run the race</b> — two simultaneous bookings for one seat,<br/>
+  one <code>201</code>, one <code>409</code>. Decided by PostgreSQL, live, in front of you.</sub>
+</p>
+
+<p align="center">
+  <sub>
+    <a href="https://airport-entrance-management-system.onrender.com/docs">Swagger UI</a> ·
+    <code>admin@airport.example.com</code> / <code>AirportDemo2026!</code> ·
+    free instances sleep, so the first request can take ~50s
+  </sub>
 </p>
 
 ---
@@ -72,14 +80,31 @@ API on <http://localhost:8000> · interactive docs at <http://localhost:8000/doc
   </a>
 </p>
 
-Already deployed at the link above. `render.yaml` provisions the database and
-web service together and wires the connection string. **Render is the
-recommended target** — it builds `backend/Dockerfile` as-is, so what runs in
-production is the artifact that runs locally.
+Both halves are live, and each platform does what it is actually good at:
 
-Vercel is supported too (`vercel.json` + `api/index.py`), but it costs you the
-Dockerfile, in-process migrations, and connection pooling. The trade is spelled
-out in **[docs/DEPLOY.md](docs/DEPLOY.md)** — read it before choosing.
+```mermaid
+flowchart LR
+    U(["Browser"]) -->|"static"| V["<b>Vercel</b><br/>web/ · the demo UI"]
+    V -->|"fetch · CORS"| R["<b>Render</b><br/>backend/Dockerfile<br/>FastAPI"]
+    R --> P[("PostgreSQL 16<br/>Render · internal only")]
+
+    style V fill:#2d7dd2,stroke:#52b6ff,color:#fff
+    style R fill:#1a4d8f,stroke:#52b6ff,color:#fff
+    style P fill:#0a2540,stroke:#52b6ff,color:#fff
+```
+
+**Render** runs the API from `backend/Dockerfile` as-is, so what serves
+production is the artifact that runs locally. `render.yaml` provisions the
+database and web service together and wires the connection string.
+
+**Vercel** serves the static UI in `web/` — no build step, no framework. It
+calls the Render API cross-origin, which is why `AIRPORT_CORS_ORIGINS` names
+the Vercel domain.
+
+`vercel.json` + `api/index.py` can also run the *API itself* on Vercel, but that
+needs its own database — Render's free Postgres accepts no external
+connections — and costs you the Dockerfile and in-process migrations.
+**[docs/DEPLOY.md](docs/DEPLOY.md)** has the trade-offs and the free-tier traps.
 
 Showing this to someone? **[docs/DEMO.md](docs/DEMO.md)** has the script.
 
