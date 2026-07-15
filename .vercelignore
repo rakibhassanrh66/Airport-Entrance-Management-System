@@ -1,12 +1,28 @@
-# Vercel serves the static UI in web/ (see vercel.json outputDirectory).
-# Nothing else in this repo needs uploading — the API runs on Render.
+# Vercel gets two things: the static UI in web/, and the Python API in api/
+# (which imports backend/app via vercel.json includeFiles).
+#
+# Everything below is either Render's job, history, or weight.
 
-backend/
 Devfiles/
 docs/
 cli/
 .github/
 *.md
+
+# Render's deploy path — Vercel never builds a container.
 render.yaml
-requirements.txt
-api/
+backend/Dockerfile
+backend/docker-compose.yml
+backend/.env
+backend/.env.example
+
+# Alembic is unusable inside a serverless function; migrations run from a
+# machine that can reach the database. See docs/DEPLOY.md.
+backend/alembic/
+backend/alembic.ini
+backend/run_local.py
+
+backend/.venv/
+backend/tests/
+backend/pyproject.toml
+**/__pycache__/

@@ -26,6 +26,12 @@ def get_engine() -> AsyncEngine:
                 str(settings.database_url),
                 echo=settings.db_echo,
                 poolclass=NullPool,
+                # psycopg prepares a statement once it has seen it a few times.
+                # Behind a *transaction-mode* pooler (Supabase :6543, pgbouncer)
+                # the next execution can land on a different server connection,
+                # where that prepared statement does not exist — so it fails
+                # under load, after working fine in testing. None disables it.
+                connect_args={"prepare_threshold": None},
             )
         else:
             _engine = create_async_engine(

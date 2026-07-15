@@ -1,7 +1,20 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "outputDirectory": "web",
-  "cleanUrls": true,
+  "functions": {
+    "api/index.py": {
+      "includeFiles": "backend/app/**",
+      "maxDuration": 30
+    }
+  },
+  "rewrites": [
+    { "source": "/api/v1/:path*", "destination": "/api/index" },
+    { "source": "/docs", "destination": "/api/index" },
+    { "source": "/redoc", "destination": "/api/index" },
+    { "source": "/openapi.json", "destination": "/api/index" },
+    { "source": "/health", "destination": "/api/index" },
+    { "source": "/ready", "destination": "/api/index" }
+  ],
   "headers": [
     {
       "source": "/(.*)",

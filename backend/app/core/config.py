@@ -1,5 +1,6 @@
 from functools import lru_cache
 from typing import Literal
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from pydantic import Field, PostgresDsn, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -41,19 +42,38 @@ class Settings(BaseSettings):
 
     @field_validator("database_url", mode="before")
     @classmethod
-    def _require_async_driver(cls, v: object) -> object:
-        """Normalise a managed provider's URL to the async driver.
+    def _normalise_provider_url(cls, v: object) -> object:
+        """Make a managed provider's connection string usable as-is.
 
-        Render, Neon, Supabase, Railway and Heroku all hand out
-        `postgres://…` or `postgresql://…`. Both are valid DSNs, and both fail
-        at connect time under `create_async_engine`, which needs an explicit
-        async driver. Rewriting here turns a confusing runtime error into a
-        deploy that simply works.
+        Two things go wrong when you paste a provider's URL straight in, and
+        both fail at connect time rather than at startup:
+
+        1. Render, Neon, Supabase, Railway and Heroku hand out `postgres://…`
+           or `postgresql://…`. Both are valid DSNs and both are rejected by
+           `create_async_engine`, which needs an explicit async driver.
+        2. Supabase's *pooled* URL carries `?supa=base-pooler.x`. libpq has no
+           such connection option and psycopg refuses the whole connection with
+           `invalid connection option "supa"`. Its session URL has no such
+           marker, so migrations succeed and only the pooled app breaks —
+           which makes it look like an application bug.
+
+        Anything already correct passes through untouched.
         """
-        if isinstance(v, str):
-            for prefix in ("postgres://", "postgresql://"):
-                if v.startswith(prefix):
-                    return "postgresql+psycopg://" + v[len(prefix) :]
+        if not isinstance(v, str):
+            return v
+
+        for prefix in ("postgres://", "postgresql://"):
+            if v.startswith(prefix):
+                v = "postgresql+psycopg://" + v[len(prefix) :]
+                break
+
+        # Drop vendor markers libpq does not understand, keeping real options
+        # such as sslmode.
+        if "supa=" in v:
+            parsed = urlsplit(v)
+            kept = [(k, val) for k, val in parse_qsl(parsed.query) if k != "supa"]
+            v = urlunsplit(parsed._replace(query=urlencode(kept)))
+
         return v
 
     @field_validator("jwt_secret")
