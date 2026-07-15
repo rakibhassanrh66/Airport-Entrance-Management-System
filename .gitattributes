@@ -1,0 +1,22 @@
+# Normalise line endings in the repository; let Git pick per-platform on checkout.
+* text=auto
+
+# These must stay LF even in a Windows working tree.
+#
+# core.autocrlf=true checks files out as CRLF on Windows, and `docker build`
+# copies the *working tree*, not the committed blob. A CRLF shebang means Linux
+# looks for an interpreter literally named "/bin/sh\r" and the container dies
+# with "bad interpreter" or "not found" — from a file that looks perfect in an
+# editor and diffs clean.
+*.sh            text eol=lf
+Dockerfile      text eol=lf
+docker-compose.yml text eol=lf
+*.yaml          text eol=lf
+*.yml           text eol=lf
+
+# Binary — never touch these.
+*.png binary
+*.jpg binary
+*.mp4 binary
+*.exe binary
+*.class binary
