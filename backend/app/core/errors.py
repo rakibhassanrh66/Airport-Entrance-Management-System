@@ -47,6 +47,17 @@ class PermissionDeniedError(DomainError):
     code = "permission_denied"
 
 
+class RateLimitedError(DomainError):
+    """Too many attempts; the caller should back off and retry later."""
+
+    status_code = 429
+    code = "rate_limited"
+
+    def __init__(self, message: str, *, retry_after_seconds: int) -> None:
+        super().__init__(message, details={"retry_after_seconds": retry_after_seconds})
+        self.retry_after_seconds = retry_after_seconds
+
+
 class IllegalStateTransitionError(ConflictError):
     """A state machine rejected the requested transition."""
 

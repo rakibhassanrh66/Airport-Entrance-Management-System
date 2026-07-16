@@ -1,8 +1,9 @@
-from fastapi import APIRouter, status
+from fastapi import APIRouter, Request, Response, status
 
-from app.api.deps import CurrentUser, RequireAdmin, SessionDep
+from app.api.deps import AccessToken, CurrentUser, RequireAdmin, SessionDep
 from app.schemas.auth import (
     LoginRequest,
+    LogoutRequest,
     RefreshRequest,
     StaffUserCreate,
     StaffUserOut,
@@ -14,9 +15,31 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 @router.post("/login", response_model=TokenPair, summary="Exchange credentials for tokens")
-async def login(payload: LoginRequest, session: SessionDep) -> TokenPair:
-    user = await auth_service.authenticate(session, payload.email, payload.password)
+async def login(payload: LoginRequest, session: SessionDep, request: Request) -> TokenPair:
+    user = await auth_service.authenticate(
+        session,
+        payload.email,
+        payload.password,
+        client_ip=request.client.host if request.client else None,
+    )
     return auth_service.issue_tokens(user)
+
+
+@router.post(
+    "/logout",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Revoke the caller's tokens",
+)
+async def logout(
+    payload: LogoutRequest,
+    session: SessionDep,
+    access_token: AccessToken,
+    _: CurrentUser,
+) -> Response:
+    await auth_service.logout(
+        session, access_token=access_token, refresh_token=payload.refresh_token
+    )
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.post("/refresh", response_model=TokenPair, summary="Exchange a refresh token")

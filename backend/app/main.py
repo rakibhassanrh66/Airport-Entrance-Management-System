@@ -10,7 +10,7 @@ from sqlalchemy.exc import IntegrityError
 
 from app.api.v1.router import api_router
 from app.core.config import get_settings
-from app.core.errors import DomainError
+from app.core.errors import DomainError, RateLimitedError
 from app.core.logging import configure_logging
 from app.db.session import dispose_engine, get_sessionmaker
 
@@ -87,9 +87,18 @@ def _register_root_route(app: FastAPI, settings) -> None:
 def _register_exception_handlers(app: FastAPI) -> None:
     @app.exception_handler(DomainError)
     async def _domain_error(_: Request, exc: DomainError) -> JSONResponse:
+        # A 429 without Retry-After tells the client to back off but not for how
+        # long, so every client invents its own answer. RFC 9110 defines the
+        # header for exactly this; send it.
+        headers = (
+            {"Retry-After": str(exc.retry_after_seconds)}
+            if isinstance(exc, RateLimitedError)
+            else None
+        )
         return JSONResponse(
             status_code=exc.status_code,
             content={"code": exc.code, "message": exc.message, "details": exc.details},
+            headers=headers,
         )
 
     @app.exception_handler(IntegrityError)

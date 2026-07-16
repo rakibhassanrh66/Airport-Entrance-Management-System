@@ -19,6 +19,18 @@ _bearer = HTTPBearer(auto_error=False)
 SessionDep = Annotated[AsyncSession, Depends(get_session)]
 
 
+async def get_access_token(
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(_bearer)],
+) -> str:
+    """The raw bearer string, for endpoints that must act on the token itself."""
+    if credentials is None:
+        raise AuthenticationError("Missing bearer token.")
+    return credentials.credentials
+
+
+AccessToken = Annotated[str, Depends(get_access_token)]
+
+
 async def get_current_user(
     session: SessionDep,
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(_bearer)],
@@ -27,6 +39,13 @@ async def get_current_user(
         raise AuthenticationError("Missing bearer token.")
 
     payload = decode_token(credentials.credentials, expected_type="access")
+
+    # A valid signature is not the same as a token we still honour. Without this
+    # lookup, logout would only be a suggestion: the token stays cryptographically
+    # valid until it expires, so a copy of it keeps working.
+    if await auth_service.is_revoked(session, payload.get("jti")):
+        raise AuthenticationError("This token has been revoked.")
+
     return await auth_service.get_active_user(session, int(payload["sub"]))
 
 

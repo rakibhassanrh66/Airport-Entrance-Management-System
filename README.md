@@ -2,7 +2,7 @@
 
 <p align="center">
   <a href="https://readme-typing-svg.demolab.com">
-    <img src="https://readme-typing-svg.demolab.com?font=Fira+Code&weight=500&size=22&pause=1000&color=2D7DD2&center=true&vCenter=true&width=560&lines=Two+passengers%2C+one+seat%3F+Not+here.;One+gate%2C+two+flights%3F+The+database+says+no.;35+endpoints.+117+tests.+Zero+string-built+SQL." alt="Typing SVG" />
+    <img src="https://readme-typing-svg.demolab.com?font=Fira+Code&weight=500&size=22&pause=1000&color=2D7DD2&center=true&vCenter=true&width=560&lines=Two+passengers%2C+one+seat%3F+Not+here.;One+gate%2C+two+flights%3F+The+database+says+no.;36+endpoints.+128+tests.+Zero+string-built+SQL." alt="Typing SVG" />
   </a>
 </p>
 
@@ -15,7 +15,7 @@
 
 <p align="center">
   <a href="https://github.com/rakibhassanrh66/Airport-Entrance-Management-System/actions/workflows/ci.yml"><img src="https://github.com/rakibhassanrh66/Airport-Entrance-Management-System/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
-  <img src="https://img.shields.io/badge/endpoints-35-blue?style=flat-square" alt="35 endpoints" />
+  <img src="https://img.shields.io/badge/endpoints-36-blue?style=flat-square" alt="36 endpoints" />
   <img src="https://img.shields.io/badge/python-3.12+-3776AB?style=flat-square&logo=python&logoColor=white" alt="Python 3.12+" />
   <img src="https://img.shields.io/badge/license-MIT-black?style=flat-square" alt="MIT" />
 </p>
@@ -81,30 +81,34 @@ API on <http://localhost:8000> · interactive docs at <http://localhost:8000/doc
   </a>
 </p>
 
-Both halves are live, and each platform does what it is actually good at:
+The same code runs as **two independent stacks**, each with its own database.
+Neither is a migration of the other:
 
 ```mermaid
 flowchart LR
-    U(["Browser"]) -->|"static"| V["<b>Vercel</b><br/>web/ · the demo UI"]
-    V -->|"fetch · CORS"| R["<b>Render</b><br/>backend/Dockerfile<br/>FastAPI"]
+    U(["Browser"]) --> V["<b>Vercel</b><br/>web/ · demo UI<br/>api/index.py · FastAPI"]
+    V --> S[("PostgreSQL<br/>Supabase")]
+
+    U -.->|"?api=…"| R["<b>Render</b><br/>backend/Dockerfile<br/>FastAPI"]
     R --> P[("PostgreSQL 16<br/>Render · internal only")]
 
     style V fill:#2d7dd2,stroke:#52b6ff,color:#fff
     style R fill:#1a4d8f,stroke:#52b6ff,color:#fff
     style P fill:#0a2540,stroke:#52b6ff,color:#fff
+    style S fill:#0a2540,stroke:#52b6ff,color:#fff
 ```
 
-**Render** runs the API from `backend/Dockerfile` as-is, so what serves
+**Vercel** serves the UI *and* the API from one project, so the page calls
+`/api/v1/...` on its own origin — no CORS, no preflight, nothing to keep in
+sync. `api/index.py` runs the same FastAPI app as a serverless function against
+Supabase.
+
+**Render** runs that same app from `backend/Dockerfile` as-is, so what serves
 production is the artifact that runs locally. `render.yaml` provisions the
-database and web service together and wires the connection string.
+database and web service together and wires the connection string. The demo page
+can be pointed at it with `?api=https://…onrender.com`, which *is* cross-origin
+and so does need `AIRPORT_CORS_ORIGINS` to name the Vercel domain.
 
-**Vercel** serves the static UI in `web/` — no build step, no framework. It
-calls the Render API cross-origin, which is why `AIRPORT_CORS_ORIGINS` names
-the Vercel domain.
-
-`vercel.json` + `api/index.py` can also run the *API itself* on Vercel, but that
-needs its own database — Render's free Postgres accepts no external
-connections — and costs you the Dockerfile and in-process migrations.
 **[docs/DEPLOY.md](docs/DEPLOY.md)** has the trade-offs and the free-tier traps.
 
 Showing this to someone? **[docs/DEMO.md](docs/DEMO.md)** has the script.
@@ -362,11 +366,11 @@ erDiagram
 
 ## API
 
-**35 endpoints** under `/api/v1`. Full reference at `/docs`.
+**36 endpoints** under `/api/v1`. Full reference at `/docs`.
 
 | Area | Highlights |
 |---|---|
-| **auth** | `login`, `refresh`, `me`, `staff` <sub>(admin)</sub> |
+| **auth** | `login`, `refresh`, `logout`, `me`, `staff` <sub>(admin)</sub> |
 | **flights** | list/filter, create, `PATCH /{id}/status`, `GET /{id}/seats` |
 | **tickets** | book, `check-in`, `cancel` |
 | **passengers** | register, search by name/nationality |
@@ -394,16 +398,56 @@ are accepted **only** by `/auth/refresh` and rejected everywhere else.
 </details>
 
 <details>
+<summary><b>Logout, when the token cannot be un-issued</b></summary>
+
+<br/>
+
+A signed JWT is valid until it expires. Nothing the client does can withdraw it,
+so deleting it in the browser is a UI gesture — anyone who copied it still holds
+a working credential.
+
+`POST /auth/logout` records the `jti` every token already carries into
+`revoked_tokens`, and the request path refuses any `jti` it finds there. That
+costs one lookup per request, which is the honest price of logout meaning
+something. Rows are purgeable once the token would have expired anyway.
+
+Send the refresh token with the logout or it stays usable — it outlives the
+access token by days and will mint a replacement on demand.
+
+</details>
+
+<details>
+<summary><b>Login rate limiting, and why it is in the database</b></summary>
+
+<br/>
+
+Five failures per email in fifteen minutes, then `429` with a `Retry-After`.
+
+The counter lives in `login_attempts`, not in process memory, because this app
+runs as more than one instance on Render and as serverless functions on Vercel.
+An in-process counter is per-process: it either resets constantly or protects
+only the instance that happened to see the attempts. A shared table is the only
+place the count is true for every caller at once.
+
+The limit applies to **unknown emails too**. A limit that only bites for real
+accounts is an enumeration oracle — `429` would mean "this email exists" and
+`401` would mean it does not. A success clears the count, so fumbling your
+password and then getting it right does not leave you one typo from a lockout.
+
+</details>
+
+<details>
 <summary><b>Known gaps — read before exposing to real traffic</b></summary>
 
 <br/>
 
-- **No logout / refresh-token revocation.** A stolen token is valid until it expires.
-- **No login rate limiting.**
-- **No CI pipeline.**
+- **Refresh tokens are revoked but not rotated.** A refresh token is reusable
+  until revoked or expired.
 - **17 tables are modelled and migrated but have no HTTP routes** — employees,
   cargo, crew scheduling, runways, maintenance, checkpoints, airline staff, and
   the 10 reference tables. Deliberate: quality over surface area.
+- **Migrations run at container start.** Fine at one instance; several want a
+  release phase.
 
 </details>
 
@@ -415,7 +459,7 @@ are accepted **only** by `/auth/refresh` and rejected everywhere else.
 cd backend && python -m pytest
 ```
 
-117 tests, against **real PostgreSQL** — created, migrated and dropped
+128 tests, against **real PostgreSQL** — created, migrated and dropped
 automatically. Not SQLite: partial unique indexes, GiST exclusion constraints and
 `SELECT … FOR UPDATE` do not exist there, so a green SQLite suite would prove
 nothing about production. Each test runs in a transaction that is rolled back.

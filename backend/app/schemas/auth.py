@@ -22,6 +22,13 @@ class RefreshRequest(BaseModel):
     refresh_token: str
 
 
+class LogoutRequest(BaseModel):
+    # Optional: the access token comes from the Authorization header and is
+    # always revoked. Sending the refresh token too is what makes the logout
+    # complete, since otherwise it can mint a fresh access token immediately.
+    refresh_token: str | None = None
+
+
 class StaffUserCreate(BaseModel):
     email: EmailStr
     full_name: str = Field(min_length=1, max_length=150)

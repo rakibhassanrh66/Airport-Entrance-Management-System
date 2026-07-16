@@ -20,7 +20,7 @@ There is a second, independent stack on Render — same code, its own database:
 ## The 60-second version
 
 > "It's an airport operations backend — flights, ticketing, gates, baggage,
-> immigration. 35 endpoints, 117 tests, running on Vercel and on Render.
+> immigration. 36 endpoints, 128 tests, running on Vercel and on Render.
 >
 > The part I'd point at is that the business rules are enforced in PostgreSQL,
 > not in Python. Two people can't book the same seat — and not because I check
@@ -129,14 +129,34 @@ rather than scolds.
 
 Answer honestly; it lands better than pretending it's finished.
 
-- **No logout / refresh-token revocation.** A stolen token is valid until it
-  expires. Fixing it means a token denylist or short-lived tokens plus rotation.
-- **No login rate limiting.**
 - **17 tables are modelled and migrated but have no HTTP routes** — a deliberate
   quality-over-surface-area call.
-- **No CI.** The tests exist and pass; nothing runs them on push.
 - **Migrations run at container start.** Fine at one instance; with several it
   wants a proper release phase.
+- **Refresh tokens are revoked but not rotated.** A refresh token is reusable
+  until it is revoked or expires; rotating it on every use would shrink the
+  window further.
+- **Revocation costs a lookup per request.** That is the price of logout meaning
+  something with self-contained tokens. Short-lived tokens would trade it back.
+
+If they ask what you *fixed*, these three are worth naming, because each has a
+story:
+
+- **Logout now revokes.** A signed JWT cannot be un-issued, so client-side
+  "logout" left a working credential in anyone's hands who copied it. Every
+  token already carried a `jti`; `revoked_tokens` records it and the request
+  path refuses it.
+- **Login is rate limited in the database, not in memory.** This runs as
+  multiple instances on Render and as serverless functions on Vercel, where an
+  in-process counter is per-process — so it either resets constantly or guards
+  only the one instance that saw the attempts. A shared table is the only place
+  the count is true for everyone. The limit deliberately applies to unknown
+  emails too, or 429-vs-401 becomes an account-enumeration oracle.
+- **CI runs the suite on every push**, against a real `postgres:16`. Its very
+  first run caught a bug worth telling: `pytest_asyncio_loop_factories` returned
+  `None` off Windows, which pytest-asyncio treats as a fatal `UsageError` — so
+  the suite had never once been able to collect on Linux. Every previous "the
+  tests pass" was a Windows-only claim.
 
 Naming your own gaps unprompted reads as judgement, not weakness. An interviewer
 who finds them for you is a worse outcome than you listing them first.

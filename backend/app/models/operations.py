@@ -22,6 +22,7 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    func,
     literal_column,
     text,
 )
@@ -73,6 +74,68 @@ class StaffUser(Base, TimestampMixin):
     employee: Mapped["Employee | None"] = relationship(back_populates="staff_user")
 
     __table_args__ = (CheckConstraint("position('@' in email) > 1", name="email_has_at_sign"),)
+
+
+class RevokedToken(Base):
+    """A token that must not be honoured again, keyed by the jti it carries.
+
+    A JWT is self-contained: once signed it is valid until it expires, and
+    nothing the client does can un-issue it. "Logging out" by deleting the token
+    client-side is therefore a UI gesture, not a security control — anyone who
+    copied the token still holds a working credential.
+
+    Every token this app mints already carries a jti. Writing that jti here, and
+    checking it on the way in, is what turns "the client threw it away" into
+    "the server refuses it".
+
+    expires_at is what keeps this from becoming an unbounded ledger: a row stops
+    mattering the moment the token would have expired anyway, so it is safe to
+    purge past that point.
+    """
+
+    __tablename__ = "revoked_tokens"
+
+    jti: Mapped[str] = mapped_column(String(36), primary_key=True)
+    staff_user_id: Mapped[int] = mapped_column(
+        ForeignKey("staff_users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    token_type: Mapped[str] = mapped_column(String(10), nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, index=True
+    )
+    revoked_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
+class LoginAttempt(Base):
+    """One row per login attempt, successful or not.
+
+    Rate limiting lives in the database rather than in process memory on
+    purpose. This API runs as more than one instance on Render and as serverless
+    functions on Vercel, where the process is frozen and recycled between
+    requests. An in-memory counter is per-process, so it either resets
+    constantly or protects only the one instance that happens to see the
+    attempts — which is no protection at all. A shared table is the only place
+    the count is true for every caller at once.
+    """
+
+    __tablename__ = "login_attempts"
+
+    id: Mapped[int] = mapped_column(Integer, Identity(), primary_key=True)
+    email: Mapped[str] = mapped_column(String(255), nullable=False)
+    # 45 characters is the longest an IPv6 address can be in text form.
+    client_ip: Mapped[str | None] = mapped_column(String(45))
+    succeeded: Mapped[bool] = mapped_column(nullable=False)
+    attempted_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+    __table_args__ = (
+        # The lockout question is always "failures for this email since T", so
+        # index both columns in that order.
+        Index("ix_login_attempts_email_attempted_at", "email", "attempted_at"),
+    )
 
 
 class Employee(Base, TimestampMixin):

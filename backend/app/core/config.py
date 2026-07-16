@@ -38,6 +38,11 @@ class Settings(BaseSettings):
     access_token_ttl_minutes: int = Field(default=30, ge=1, le=1440)
     refresh_token_ttl_days: int = Field(default=7, ge=1, le=90)
 
+    # Failed logins tolerated per email within the window before the account
+    # stops answering. Counted in the database, not in memory — see LoginAttempt.
+    login_max_failures: int = Field(default=5, ge=1, le=100)
+    login_failure_window_minutes: int = Field(default=15, ge=1, le=1440)
+
     cors_origins: list[str] = Field(default_factory=list)
 
     @field_validator("database_url", mode="before")
