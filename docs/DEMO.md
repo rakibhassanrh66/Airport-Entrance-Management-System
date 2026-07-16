@@ -20,7 +20,7 @@ There is a second, independent stack on Render — same code, its own database:
 ## The 60-second version
 
 > "It's an airport operations backend — flights, ticketing, gates, baggage,
-> immigration. 36 endpoints, 128 tests, running on Vercel and on Render.
+> immigration. 58 endpoints, 152 tests, running on Vercel and on Render.
 >
 > The part I'd point at is that the business rules are enforced in PostgreSQL,
 > not in Python. Two people can't book the same seat — and not because I check
@@ -118,10 +118,13 @@ earlier booking rather than a live race.
 | `POST /api/v1/tickets` | book a seat |
 | `POST /api/v1/tickets` *(same seat again)* | **409** — the constraint, visibly |
 | `PATCH /api/v1/flights/1/status` → `departed` | **409 illegal_state_transition**, and the response *lists the legal ones* |
+| `POST /api/v1/crew-assignments` *(same crew member, two overlapping flights)* | **409** — the same seat rule, one axis over: a person can't crew two aircraft at once |
 
-That last one is the second-best demo. `scheduled` cannot jump to `departed`.
+That status one is a great second demo. `scheduled` cannot jump to `departed`.
 The error tells you what it *could* have been — an error message that helps
-rather than scolds.
+rather than scolds. And crew scheduling is the third instance of the same
+idea: a GiST exclusion constraint, this time on `crew_member_id`, so one person
+cannot be rostered onto two flights whose times overlap.
 
 ---
 
@@ -129,8 +132,10 @@ rather than scolds.
 
 Answer honestly; it lands better than pretending it's finished.
 
-- **17 tables are modelled and migrated but have no HTTP routes** — a deliberate
-  quality-over-surface-area call.
+- **10 reference/ancillary tables are modelled and migrated but have no HTTP
+  routes** — a deliberate quality-over-surface-area call. The operational tables
+  (employees, cargo, crew, runways, maintenance, checkpoints, airline staff) are
+  routed; the pure lookups and passenger-attached tables are not.
 - **Migrations run at container start.** Fine at one instance; with several it
   wants a proper release phase.
 - **Refresh tokens are revoked but not rotated.** A refresh token is reusable

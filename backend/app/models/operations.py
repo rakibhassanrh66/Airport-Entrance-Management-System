@@ -487,6 +487,16 @@ class Cargo(Base, TimestampMixin):
 
 
 class FlightCrewSchedule(Base, TimestampMixin):
+    """A crew member rostered onto a flight for that flight's time window.
+
+    The window (`starts_at`/`ends_at`) is copied from the flight when the
+    assignment is made. It is denormalised on purpose: a person cannot be in two
+    places at once, and the only way PostgreSQL can enforce that under
+    concurrency is a GiST exclusion over a time range that lives on *this* row.
+    It is the same shape as the gate-overlap rule, one axis over: gates exclude
+    by gate_id, crew by crew_member_id.
+    """
+
     __tablename__ = "flight_crew_schedule"
 
     id: Mapped[int] = mapped_column(Integer, Identity(), primary_key=True)
@@ -499,12 +509,34 @@ class FlightCrewSchedule(Base, TimestampMixin):
         ForeignKey("flights.id", ondelete="CASCADE"), nullable=False, index=True
     )
     role: Mapped[CrewRole] = mapped_column(enum_type(CrewRole), nullable=False)
+    starts_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    ends_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    cancelled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     crew_member: Mapped["Employee"] = relationship(back_populates="crew_assignments")
     flight: Mapped["Flight"] = relationship(back_populates="crew")
 
     __table_args__ = (
-        UniqueConstraint(
-            "flight_id", "crew_member_id", name="uq_flight_crew_schedule_flight_id_crew_member_id"
+        CheckConstraint("ends_at > starts_at", name="ends_after_starts"),
+        # One live assignment of a given crew member to a given flight. Partial
+        # so releasing an assignment frees the pair to be rostered again, exactly
+        # like a cancelled ticket frees its seat.
+        Index(
+            "uq_flight_crew_active",
+            "flight_id",
+            "crew_member_id",
+            unique=True,
+            postgresql_where=text("cancelled_at IS NULL"),
+        ),
+        # The rule that makes this more than a join table: the same crew member
+        # cannot hold two live assignments whose flight windows overlap. An
+        # app-level "is this person free?" check loses to two concurrent
+        # rosterings; this does not.
+        ExcludeConstraint(
+            ("crew_member_id", "="),
+            (literal_column("tstzrange(starts_at, ends_at)"), "&&"),
+            name="flight_crew_no_overlap",
+            using="gist",
+            where=text("cancelled_at IS NULL"),
         ),
     )

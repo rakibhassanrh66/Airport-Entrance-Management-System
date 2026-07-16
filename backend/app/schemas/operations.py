@@ -8,9 +8,14 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 from app.models.enums import (
     BaggageStatus,
     BookingStatus,
+    CargoStatus,
+    CheckpointStatus,
+    CrewRole,
     FlightStatus,
     GateStatus,
     ImmigrationStatus,
+    MaintenanceType,
+    RunwayStatus,
     TicketClass,
 )
 from app.schemas.common import ORMModel
@@ -250,3 +255,146 @@ class ImmigrationOut(ORMModel):
     status: ImmigrationStatus
     remarks: str | None
     processed_at: datetime | None
+
+
+# --------------------------------------------------------------------------- employees
+
+
+class EmployeeCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=100)
+    role: str = Field(min_length=1, max_length=50)
+    department: str = Field(min_length=1, max_length=50)
+    contact_info: str | None = Field(default=None, max_length=255)
+    salary: Decimal = Field(ge=0, decimal_places=2)
+
+
+class EmployeeUpdate(BaseModel):
+    """Every field optional: PATCH updates only what is sent."""
+
+    name: str | None = Field(default=None, min_length=1, max_length=100)
+    role: str | None = Field(default=None, min_length=1, max_length=50)
+    department: str | None = Field(default=None, min_length=1, max_length=50)
+    contact_info: str | None = Field(default=None, max_length=255)
+    salary: Decimal | None = Field(default=None, ge=0, decimal_places=2)
+
+    @model_validator(mode="after")
+    def _at_least_one(self) -> "EmployeeUpdate":
+        if not self.model_dump(exclude_unset=True):
+            raise ValueError("provide at least one field to update")
+        return self
+
+
+class EmployeeOut(ORMModel):
+    id: int
+    name: str
+    role: str
+    department: str
+    contact_info: str | None
+    salary: Decimal
+
+
+# --------------------------------------------------------------------------- maintenance
+
+
+class MaintenanceCreate(BaseModel):
+    type: MaintenanceType
+    scheduled_date: date
+    description: str | None = Field(default=None, max_length=2000)
+    employee_id: int | None = None
+
+
+class MaintenanceOut(ORMModel):
+    id: int
+    type: MaintenanceType
+    scheduled_date: date
+    description: str | None
+    employee_id: int | None
+
+
+# --------------------------------------------------------------------------- crew scheduling
+
+
+class CrewAssignmentCreate(BaseModel):
+    flight_id: int
+    crew_member_id: int
+    role: CrewRole
+
+
+class CrewAssignmentOut(ORMModel):
+    id: int
+    flight_id: int
+    crew_member_id: int
+    role: CrewRole
+    starts_at: datetime
+    ends_at: datetime
+    cancelled_at: datetime | None
+
+
+# --------------------------------------------------------------------------- runways
+
+
+class RunwayCreate(BaseModel):
+    runway_number: str = Field(min_length=1, max_length=10)
+
+
+class RunwayStatusUpdate(BaseModel):
+    status: RunwayStatus
+
+
+class RunwayOut(ORMModel):
+    id: int
+    runway_number: str
+    status: RunwayStatus
+
+
+# --------------------------------------------------------------------------- cargo
+
+
+class CargoCreate(BaseModel):
+    flight_id: int
+    weight_kg: Decimal = Field(gt=0, decimal_places=2)
+
+
+class CargoStatusUpdate(BaseModel):
+    status: CargoStatus
+
+
+class CargoOut(ORMModel):
+    id: int
+    flight_id: int
+    weight_kg: Decimal
+    status: CargoStatus
+
+
+# --------------------------------------------------------------------------- security checkpoints
+
+
+class CheckpointCreate(BaseModel):
+    location: str = Field(min_length=1, max_length=50)
+    gate_id: int | None = None
+
+
+class CheckpointStatusUpdate(BaseModel):
+    status: CheckpointStatus
+
+
+class CheckpointOut(ORMModel):
+    id: int
+    location: str
+    gate_id: int | None
+    status: CheckpointStatus
+
+
+# --------------------------------------------------------------------------- airline staff
+
+
+class AirlineStaffCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=100)
+    role: str = Field(min_length=1, max_length=50)
+
+
+class AirlineStaffOut(ORMModel):
+    id: int
+    airline_id: int
+    name: str
+    role: str

@@ -7,9 +7,12 @@ from sqlalchemy.exc import IntegrityError
 from app.api.deps import CurrentUser, RequireOps, SessionDep
 from app.api.v1._pagination import paginate
 from app.core.errors import ConflictError, NotFoundError
-from app.models.operations import Gate, Terminal
+from app.models.operations import Gate, SecurityCheckpoint, Terminal
 from app.schemas.common import Page
 from app.schemas.operations import (
+    CheckpointCreate,
+    CheckpointOut,
+    CheckpointStatusUpdate,
     GateAssignmentCreate,
     GateAssignmentOut,
     GateCreate,
@@ -147,3 +150,65 @@ async def assign_gate(
 async def release_gate(assignment_id: int, session: SessionDep, _: RequireOps) -> GateAssignmentOut:
     assignment = await gate_service.release_gate(session, assignment_id)
     return GateAssignmentOut.model_validate(assignment)
+
+
+# --------------------------------------------------------------------------- checkpoints
+
+
+@router.get(
+    "/checkpoints",
+    response_model=Page[CheckpointOut],
+    summary="List security checkpoints",
+    tags=["checkpoints"],
+)
+async def list_checkpoints(
+    session: SessionDep,
+    _: CurrentUser,
+    limit: Annotated[int, Query(ge=1, le=200)] = 50,
+    offset: Annotated[int, Query(ge=0)] = 0,
+) -> Page[CheckpointOut]:
+    return await paginate(
+        session,
+        select(SecurityCheckpoint),
+        schema=CheckpointOut,
+        limit=limit,
+        offset=offset,
+        order_by=SecurityCheckpoint.id,
+    )
+
+
+@router.post(
+    "/checkpoints",
+    response_model=CheckpointOut,
+    status_code=status.HTTP_201_CREATED,
+    summary="Add a security checkpoint",
+    tags=["checkpoints"],
+)
+async def create_checkpoint(
+    payload: CheckpointCreate, session: SessionDep, _: RequireOps
+) -> CheckpointOut:
+    if payload.gate_id is not None and await session.get(Gate, payload.gate_id) is None:
+        raise NotFoundError(f"Gate {payload.gate_id} not found.")
+    checkpoint = SecurityCheckpoint(**payload.model_dump())
+    session.add(checkpoint)
+    await session.commit()
+    await session.refresh(checkpoint)
+    return CheckpointOut.model_validate(checkpoint)
+
+
+@router.patch(
+    "/checkpoints/{checkpoint_id}/status",
+    response_model=CheckpointOut,
+    summary="Set a checkpoint's status",
+    tags=["checkpoints"],
+)
+async def set_checkpoint_status(
+    checkpoint_id: int, payload: CheckpointStatusUpdate, session: SessionDep, _: RequireOps
+) -> CheckpointOut:
+    checkpoint = await session.get(SecurityCheckpoint, checkpoint_id)
+    if checkpoint is None:
+        raise NotFoundError(f"Checkpoint {checkpoint_id} not found.")
+    checkpoint.status = payload.status
+    await session.commit()
+    await session.refresh(checkpoint)
+    return CheckpointOut.model_validate(checkpoint)

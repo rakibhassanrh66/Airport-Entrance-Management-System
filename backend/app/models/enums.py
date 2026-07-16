@@ -142,6 +142,14 @@ BAGGAGE_STATUS_TRANSITIONS: dict[BaggageStatus, frozenset[BaggageStatus]] = {
     BaggageStatus.LOST: frozenset({BaggageStatus.DELIVERED}),
 }
 
+#: Legal cargo transitions. A consignment is loaded, moves, then is unloaded;
+#: it does not go back to loaded once it has left, and unloaded is terminal.
+CARGO_STATUS_TRANSITIONS: dict[CargoStatus, frozenset[CargoStatus]] = {
+    CargoStatus.LOADED: frozenset({CargoStatus.IN_TRANSIT, CargoStatus.UNLOADED}),
+    CargoStatus.IN_TRANSIT: frozenset({CargoStatus.UNLOADED}),
+    CargoStatus.UNLOADED: frozenset(),
+}
+
 #: Booking states that still occupy a seat.
 ACTIVE_BOOKING_STATUSES: frozenset[BookingStatus] = frozenset(
     {BookingStatus.CONFIRMED, BookingStatus.CHECKED_IN}

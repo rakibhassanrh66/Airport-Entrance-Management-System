@@ -20,11 +20,13 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import dispose_engine, get_sessionmaker
-from app.models.enums import FlightStatus, StaffRole
+from app.models.enums import CargoStatus, CrewRole, FlightStatus, StaffRole
 from app.models.operations import (
     Airline,
+    Cargo,
     Employee,
     Flight,
+    FlightCrewSchedule,
     Gate,
     Passenger,
     Runway,
@@ -175,6 +177,43 @@ async def _seed_people(session: AsyncSession) -> None:
     await session.commit()
 
 
+async def _seed_operations(session: AsyncSession) -> None:
+    """Roster crew and load some cargo, so those endpoints show real data.
+
+    Each employee is rostered onto a distinct flight, which sidesteps the
+    crew-overlap exclusion by construction: one person never appears twice.
+    """
+    employees = list(await session.scalars(select(Employee).order_by(Employee.name)))
+    flights = list(await session.scalars(select(Flight).order_by(Flight.flight_number)))
+    if not employees or not flights:
+        return
+
+    roles = [CrewRole.PILOT, CrewRole.CO_PILOT, CrewRole.CABIN_CREW]
+    for employee, flight, role in zip(employees, flights, roles, strict=False):
+        exists = await session.scalar(
+            select(FlightCrewSchedule).where(
+                FlightCrewSchedule.crew_member_id == employee.id,
+                FlightCrewSchedule.flight_id == flight.id,
+            )
+        )
+        if exists is None:
+            session.add(
+                FlightCrewSchedule(
+                    crew_member_id=employee.id,
+                    flight_id=flight.id,
+                    role=role,
+                    starts_at=flight.departure_time,
+                    ends_at=flight.arrival_time,
+                )
+            )
+    await session.commit()
+
+    for flight in flights[:2]:
+        if await session.scalar(select(Cargo).where(Cargo.flight_id == flight.id)) is None:
+            session.add(Cargo(flight_id=flight.id, weight_kg=1500, status=CargoStatus.LOADED))
+    await session.commit()
+
+
 async def main() -> None:
     async with get_sessionmaker()() as session:
         email, password = await _seed_staff(session)
@@ -182,6 +221,7 @@ async def main() -> None:
         await _seed_infrastructure(session)
         await _seed_flights(session, airline_ids)
         await _seed_people(session)
+        await _seed_operations(session)
 
     await dispose_engine()
 

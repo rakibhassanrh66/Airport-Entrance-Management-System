@@ -2,7 +2,7 @@
 
 <p align="center">
   <a href="https://readme-typing-svg.demolab.com">
-    <img src="https://readme-typing-svg.demolab.com?font=Fira+Code&weight=500&size=22&pause=1000&color=2D7DD2&center=true&vCenter=true&width=560&lines=Two+passengers%2C+one+seat%3F+Not+here.;One+gate%2C+two+flights%3F+The+database+says+no.;36+endpoints.+128+tests.+Zero+string-built+SQL." alt="Typing SVG" />
+    <img src="https://readme-typing-svg.demolab.com?font=Fira+Code&weight=500&size=22&pause=1000&color=2D7DD2&center=true&vCenter=true&width=560&lines=Two+passengers%2C+one+seat%3F+Not+here.;One+gate%2C+two+flights%3F+The+database+says+no.;58+endpoints.+152+tests.+Zero+string-built+SQL." alt="Typing SVG" />
   </a>
 </p>
 
@@ -15,7 +15,7 @@
 
 <p align="center">
   <a href="https://github.com/rakibhassanrh66/Airport-Entrance-Management-System/actions/workflows/ci.yml"><img src="https://github.com/rakibhassanrh66/Airport-Entrance-Management-System/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
-  <img src="https://img.shields.io/badge/endpoints-36-blue?style=flat-square" alt="36 endpoints" />
+  <img src="https://img.shields.io/badge/endpoints-58-blue?style=flat-square" alt="58 endpoints" />
   <img src="https://img.shields.io/badge/python-3.12+-3776AB?style=flat-square&logo=python&logoColor=white" alt="Python 3.12+" />
   <img src="https://img.shields.io/badge/license-MIT-black?style=flat-square" alt="MIT" />
 </p>
@@ -247,6 +247,21 @@ EXCLUDE USING gist (gate_id WITH =, tstzrange(starts_at, ends_at) WITH &&)
 Overlapping windows on a gate are impossible. Adjacent ones (10:00–11:00, then
 11:00–12:00) are fine — `tstzrange` is half-open.
 
+### One crew member, one flight at a time
+
+The same rule, one axis over. A person cannot be in two aircraft at once, so the
+exclusion keys on the crew member instead of the gate:
+
+```sql
+EXCLUDE USING gist (crew_member_id WITH =, tstzrange(starts_at, ends_at) WITH &&)
+  WHERE (cancelled_at IS NULL)
+```
+
+Roster a crew member onto a flight whose window overlaps one they already work
+and the second assignment gets a 409 — decided by PostgreSQL, and it holds under
+two simultaneous rostering requests. Back-to-back flights are fine, again because
+`tstzrange` is half-open.
+
 <details>
 <summary><b>Baggage and immigration</b></summary>
 
@@ -266,7 +281,7 @@ flight, and are decided exactly once.
 
 ## Data model
 
-27 tables. The core operational entities:
+29 tables. The core operational entities:
 
 ```mermaid
 erDiagram
@@ -366,7 +381,7 @@ erDiagram
 
 ## API
 
-**36 endpoints** under `/api/v1`. Full reference at `/docs`.
+**58 endpoints** under `/api/v1`. Full reference at `/docs`.
 
 | Area | Highlights |
 |---|---|
@@ -374,9 +389,12 @@ erDiagram
 | **flights** | list/filter, create, `PATCH /{id}/status`, `GET /{id}/seats` |
 | **tickets** | book, `check-in`, `cancel` |
 | **passengers** | register, search by name/nationality |
-| **gates** | terminals, gates, `gate-assignments`, `GET /gates/{id}/schedule` |
+| **gates** | terminals, gates, `gate-assignments`, `GET /gates/{id}/schedule`, checkpoints |
 | **baggage** | check in, `by-tag/{tag}`, `PATCH /{id}/status` |
 | **immigration** | open case, `POST /{id}/decision` |
+| **crew** | `crew-assignments` <sub>(no double-booking)</sub>, `GET /flights/{id}/crew` |
+| **employees** | list/filter, create, `PATCH /{id}` <sub>(admin)</sub>, maintenance scheduling |
+| **airside** | runways, cargo <sub>(lifecycle)</sub> |
 
 Liveness at `/health` <sub>(no database)</sub> · readiness at `/ready` <sub>(checks the database)</sub>
 
@@ -443,9 +461,11 @@ password and then getting it right does not leave you one typo from a lockout.
 
 - **Refresh tokens are revoked but not rotated.** A refresh token is reusable
   until revoked or expired.
-- **17 tables are modelled and migrated but have no HTTP routes** — employees,
-  cargo, crew scheduling, runways, maintenance, checkpoints, airline staff, and
-  the 10 reference tables. Deliberate: quality over surface area.
+- **10 reference/ancillary tables are modelled and migrated but have no HTTP
+  routes** — the passenger-attached ones (emergency contacts, duty-free, hotel
+  reservations, lost-and-found) and pure lookups (fuel stations, weather, VIP
+  lounges, taxis, parking, emergency protocols). The seven *operational* tables
+  are now routed; these stay unrouted on purpose: quality over surface area.
 - **Migrations run at container start.** Fine at one instance; several want a
   release phase.
 
@@ -459,7 +479,7 @@ password and then getting it right does not leave you one typo from a lockout.
 cd backend && python -m pytest
 ```
 
-128 tests, against **real PostgreSQL** — created, migrated and dropped
+152 tests, against **real PostgreSQL** — created, migrated and dropped
 automatically. Not SQLite: partial unique indexes, GiST exclusion constraints and
 `SELECT … FOR UPDATE` do not exist there, so a green SQLite suite would prove
 nothing about production. Each test runs in a transaction that is rolled back.
