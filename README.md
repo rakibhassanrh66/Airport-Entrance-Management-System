@@ -37,12 +37,33 @@
 
 ---
 
-A backend for international airport operations. The interesting part is not that
-it has endpoints — it is that **the rules survive concurrency**, because they are
-enforced in PostgreSQL rather than checked in Python.
+## What this is, in one minute
 
-An application-level check loses to two simultaneous requests. In this domain
-that means two passengers in seat 12A.
+Think of everything an airport has to keep track of behind the scenes: which
+flights are leaving and when, who has a ticket and which seat, which gate each
+flight parks at, whose bags are where, who clears immigration, and which crew is
+working which flight. This project is the **software that runs that** — the part
+an airline's staff would talk to, not the screens travellers see.
+
+It is an **API**: a set of web addresses other programs call to get work done —
+"book seat 12A on flight BG147", "check this bag in", "clear this passenger".
+There is no app to install; the [live demo](https://airport-entrance-management.vercel.app)
+is a small web page that calls the API in front of you.
+
+The one idea worth taking away is this: **the rules can't be broken even when two
+people try to break them at the exact same instant.** Two agents both clicking
+"book seat 12A" at once should end with one ticket, not two — and here it always
+does, because the database itself refuses the second one. That sounds obvious;
+it is the thing most booking systems get wrong.
+
+<details>
+<summary>Why that is hard — the engineering version</summary>
+
+<br/>
+
+The rules **survive concurrency**, because they are enforced in PostgreSQL rather
+than checked in Python. An application-level check loses to two simultaneous
+requests: both read "seat free", both proceed, and now two passengers hold 12A.
 
 ```python
 # The check that does not work, and is everywhere:
@@ -55,6 +76,8 @@ if seat_is_free(flight, "12A"):     # ← both requests read "free"
 CREATE UNIQUE INDEX uq_tickets_flight_seat_active ON tickets (flight_id, seat_number)
   WHERE booking_status IN ('confirmed', 'checked_in');
 ```
+
+</details>
 
 ---
 
