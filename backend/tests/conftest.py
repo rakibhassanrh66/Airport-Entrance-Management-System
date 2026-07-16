@@ -24,16 +24,22 @@ from sqlalchemy.pool import NullPool
 TEST_DB_NAME = "airport_ops_test"
 
 
-def pytest_asyncio_loop_factories(config, item):
-    """Force a selector-based loop on Windows.
+if sys.platform == "win32":
 
-    psycopg's async driver refuses to run on the ProactorEventLoop, which is
-    Python's default on Windows. This is the supported replacement for the
-    deprecated event_loop_policy fixture.
-    """
-    if sys.platform == "win32":
+    def pytest_asyncio_loop_factories(config, item):
+        """Force a selector-based loop on Windows.
+
+        psycopg's async driver refuses to run on the ProactorEventLoop, which is
+        Python's default on Windows. This is the supported replacement for the
+        deprecated event_loop_policy fixture.
+
+        Defined under the platform check rather than returning None off Windows:
+        pytest-asyncio treats "no hookimpl registered" as no opinion, but an
+        implementation that returns None is a UsageError, which aborts
+        collection on every non-Windows machine. Leaving the hook undefined lets
+        the plugin apply its own default.
+        """
         return {"selector": asyncio.SelectorEventLoop}
-    return None
 
 
 def _build_test_url() -> str:
