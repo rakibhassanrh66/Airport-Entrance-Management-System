@@ -14,7 +14,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/tests-117%20passing-brightgreen?style=flat-square" alt="117 tests passing" />
+  <a href="https://github.com/rakibhassanrh66/Airport-Entrance-Management-System/actions/workflows/ci.yml"><img src="https://github.com/rakibhassanrh66/Airport-Entrance-Management-System/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
   <img src="https://img.shields.io/badge/endpoints-35-blue?style=flat-square" alt="35 endpoints" />
   <img src="https://img.shields.io/badge/python-3.12+-3776AB?style=flat-square&logo=python&logoColor=white" alt="Python 3.12+" />
   <img src="https://img.shields.io/badge/license-MIT-black?style=flat-square" alt="MIT" />
@@ -422,6 +422,11 @@ nothing about production. Each test runs in a transaction that is rolled back.
 
 Included is a test that fires two concurrent bookings at one seat and asserts
 exactly one wins.
+
+Every push runs the whole suite on
+[GitHub Actions](.github/workflows/ci.yml) against a `postgres:16` service
+container, building the schema with the real migrations — so a green run also
+proves `alembic upgrade head` still applies from scratch.
 
 ---
 
