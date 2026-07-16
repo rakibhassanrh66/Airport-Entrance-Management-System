@@ -1,18 +1,26 @@
 # Demoing this project
 
-**Live:** <https://airport-entrance-management-system.onrender.com/docs>
+**Demo:** <https://airport-entrance-management.vercel.app> (the page to show)
+**Swagger:** <https://airport-entrance-management.vercel.app/docs>
 **Login:** `admin@airport.example.com` / `AirportDemo2026!`
 
-> Free instance — it sleeps after ~15 minutes idle and the first request takes
-> **~50 seconds** to wake. Open the link a minute before anyone is watching.
-> If you are screen-sharing, warm it up first.
+> The domain is `airport-entrance-management`, **not** `…-management-system`.
+> Vercel truncated the project name when it built the alias, and the longer
+> name resolves to `DEPLOYMENT_NOT_FOUND`.
+
+There is a second, independent stack on Render — same code, its own database:
+<https://airport-entrance-management-system.onrender.com/docs>
+
+> Render's free instance sleeps after ~15 minutes idle and the first request
+> takes **~50 seconds** to wake. Vercel does not sleep, which is why it is the
+> one to demo. If you are showing Render, warm it up first.
 
 ---
 
 ## The 60-second version
 
 > "It's an airport operations backend — flights, ticketing, gates, baggage,
-> immigration. 35 endpoints, 113 tests, running on Render.
+> immigration. 35 endpoints, 117 tests, running on Vercel and on Render.
 >
 > The part I'd point at is that the business rules are enforced in PostgreSQL,
 > not in Python. Two people can't book the same seat — and not because I check

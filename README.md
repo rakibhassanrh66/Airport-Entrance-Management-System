@@ -2,7 +2,7 @@
 
 <p align="center">
   <a href="https://readme-typing-svg.demolab.com">
-    <img src="https://readme-typing-svg.demolab.com?font=Fira+Code&weight=500&size=22&pause=1000&color=2D7DD2&center=true&vCenter=true&width=560&lines=Two+passengers%2C+one+seat%3F+Not+here.;One+gate%2C+two+flights%3F+The+database+says+no.;35+endpoints.+113+tests.+Zero+string-built+SQL." alt="Typing SVG" />
+    <img src="https://readme-typing-svg.demolab.com?font=Fira+Code&weight=500&size=22&pause=1000&color=2D7DD2&center=true&vCenter=true&width=560&lines=Two+passengers%2C+one+seat%3F+Not+here.;One+gate%2C+two+flights%3F+The+database+says+no.;35+endpoints.+117+tests.+Zero+string-built+SQL." alt="Typing SVG" />
   </a>
 </p>
 
@@ -14,23 +14,24 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/tests-113%20passing-brightgreen?style=flat-square" alt="113 tests passing" />
+  <img src="https://img.shields.io/badge/tests-117%20passing-brightgreen?style=flat-square" alt="117 tests passing" />
   <img src="https://img.shields.io/badge/endpoints-35-blue?style=flat-square" alt="35 endpoints" />
   <img src="https://img.shields.io/badge/python-3.12+-3776AB?style=flat-square&logo=python&logoColor=white" alt="Python 3.12+" />
   <img src="https://img.shields.io/badge/license-MIT-black?style=flat-square" alt="MIT" />
 </p>
 
 <p align="center">
-  <b><a href="https://airport-entrance-management-system.vercel.app">▶ Open the live demo →</a></b><br/>
+  <b><a href="https://airport-entrance-management.vercel.app">▶ Open the live demo →</a></b><br/>
   <sub>Pick a flight, then hit <b>Run the race</b> — two simultaneous bookings for one seat,<br/>
   one <code>201</code>, one <code>409</code>. Decided by PostgreSQL, live, in front of you.</sub>
 </p>
 
 <p align="center">
   <sub>
-    <a href="https://airport-entrance-management-system.onrender.com/docs">Swagger UI</a> ·
+    <a href="https://airport-entrance-management.vercel.app/docs">Swagger UI</a> ·
     <code>admin@airport.example.com</code> / <code>AirportDemo2026!</code> ·
-    free instances sleep, so the first request can take ~50s
+    also on <a href="https://airport-entrance-management-system.onrender.com/docs">Render</a>,
+    whose free instance sleeps — that first request can take ~50s
   </sub>
 </p>
 
@@ -414,7 +415,7 @@ are accepted **only** by `/auth/refresh` and rejected everywhere else.
 cd backend && python -m pytest
 ```
 
-113 tests, against **real PostgreSQL** — created, migrated and dropped
+117 tests, against **real PostgreSQL** — created, migrated and dropped
 automatically. Not SQLite: partial unique indexes, GiST exclusion constraints and
 `SELECT … FOR UPDATE` do not exist there, so a green SQLite suite would prove
 nothing about production. Each test runs in a transaction that is rolled back.

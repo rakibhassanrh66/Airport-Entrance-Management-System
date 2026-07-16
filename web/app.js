@@ -1,13 +1,28 @@
 /* Airport Operations — demo UI.
  *
- * Talks to the API deployed on Render. The UI holds no logic of its own worth
+ * Talks to the API served alongside it. The UI holds no logic of its own worth
  * the name: every rule it appears to enforce is enforced server-side, and the
  * point of the race demo is that this page cannot cheat even if it wanted to.
  */
 
-const API =
-  new URLSearchParams(location.search).get("api") ||
-  "https://airport-entrance-management-system.onrender.com";
+/* Same origin by default: this page and the API are served by the same Vercel
+ * project, so "" means /api/v1/... resolves to the function next door.
+ *
+ * It used to point at the Render deployment, which cost two failure modes for
+ * no benefit — a cross-origin request that dies unless AIRPORT_CORS_ORIGINS
+ * names this exact domain (Vercel truncates the project name when it builds the
+ * alias, so the domain is not the one you would guess), and a ~50s cold start
+ * on Render's free instance while this page sat there saying "unreachable".
+ *
+ * ?api=https://... still points it anywhere, e.g. at the Render stack. That
+ * one *does* need the CORS allowlist to name this origin.
+ */
+const API = new URLSearchParams(location.search).get("api") ?? "";
+
+/* "" is a fine prefix for fetch() but not a URL: new URL("") throws outright,
+ * so resolve it against this page before anything tries to display a host.
+ */
+const API_HOST = new URL(API || location.origin).host;
 
 // A demo credential for a demo deployment holding demo data. It is in the
 // README too. Everything it can reach is seeded and disposable.
@@ -44,7 +59,7 @@ function conn(kind, text) {
 /* ── boot ─────────────────────────────────────────────────── */
 
 async function boot() {
-  $("api-host").textContent = new URL(API).host;
+  $("api-host").textContent = API_HOST;
   $("docs-link").href = API + "/docs";
   conn("wait", "waking…");
 
@@ -57,7 +72,7 @@ async function boot() {
     $("waking").classList.add("hidden");
     conn("bad", "unreachable");
     $("flights").innerHTML =
-      `<div class="loading">Could not reach <code>${API}</code>. It may still be waking — reload in a moment.</div>`;
+      `<div class="loading">Could not reach <code>${API_HOST}</code>. If it is a free instance it may still be waking — reload in a moment.</div>`;
     return;
   }
   clearTimeout(slow);
